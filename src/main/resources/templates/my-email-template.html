@@ -45,10 +45,10 @@
 </head>
 <body>
     <div class="container">
-        <h1>Hello, <span th:text="${customer.name}"></span>!</h1>
+        <h1>Hello, <span th:text="${user.name}"></span>!</h1>
         <p>We've generated a One-Time Password (OTP) for you. Please use this OTP to complete your verification process.</p>
         <div class="otp-container">
-            <h2>Your OTP is: <span class="otp" th:text="${customer.otp}"></span></h2>
+            <h2>Your OTP is: <span class="otp" th:text="${user.otp}"></span></h2>
         </div>
         <p>This OTP is valid for a limited time. Please do not share it with anyone.</p>
         <div class="footer">

@@ -71,7 +71,8 @@ public class CustomerController {
    }
 	   
 	   @GetMapping("/enter-otp")
-	   public String enterOtp() {
+	   public String enterOtp(ModelMap map) {
+		   map.put("user", "customer");
 		   return "enter-otp.html";
 	   }
 	   
@@ -82,7 +83,7 @@ public class CustomerController {
 			   customer.setVerified(true);
 			   customerRepository.save(customer);
 			   session.setAttribute("success", "Account Created Success");
-				return "redirect:/";
+				return "redirect:/login";
 		   }
 		   else {
 				session.setAttribute("failure", "Invalid OTP! Try Again");
