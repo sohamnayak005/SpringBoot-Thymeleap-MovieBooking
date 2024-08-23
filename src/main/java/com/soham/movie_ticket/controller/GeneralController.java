@@ -1,18 +1,28 @@
 package com.soham.movie_ticket.controller;
 
+import java.util.List;
 import java.util.Random;
+
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 
+import com.cloudinary.Cloudinary;
+import com.soham.movie_ticket.MovieTicketApplication;
 import com.soham.movie_ticket.dto.Customer;
+import com.soham.movie_ticket.dto.Movie;
 import com.soham.movie_ticket.dto.Theatre;
 import com.soham.movie_ticket.helper.AES;
+import com.soham.movie_ticket.helper.CloudinaryHelper;
 import com.soham.movie_ticket.helper.EmailSendingHelper;
 import com.soham.movie_ticket.repsitory.CustomerRepository;
+import com.soham.movie_ticket.repsitory.MovieRepository;
 import com.soham.movie_ticket.repsitory.TheatreRepository;
 
 import jakarta.servlet.http.HttpSession;
@@ -28,6 +38,12 @@ public class GeneralController {
 	
 	@Autowired
 	EmailSendingHelper emailSendingHelper;
+	
+	@Autowired
+    CloudinaryHelper cloudinaryHelper;
+	
+	@Autowired
+	MovieRepository movieRepository;
 	
 	@GetMapping("/")
 	public String loadMain() {
@@ -51,7 +67,7 @@ public class GeneralController {
 					if (AES.decrypt(customer.getPassword(), "123").equals(password)) {
 						if (customer.isVerified()) {
 							session.setAttribute("success", "Login Success As Customer");
-							session.setAttribute("customer", "customer");
+							session.setAttribute("customer", customer);
 							return "redirect:/";
 						} else {
 							customer.setOtp(new Random().nextInt(100000, 1000000));
@@ -72,7 +88,7 @@ public class GeneralController {
 
 							if (theatre.isApproved()) {
 								session.setAttribute("success", "Login Success As Theatre");
-								session.setAttribute("theatre", "theatre");
+								session.setAttribute("theatre", theatre);
 								return "redirect:/";
 							} else {
 								session.setAttribute("failure",
@@ -99,6 +115,12 @@ public class GeneralController {
 		}
 		catch (NumberFormatException e) {
 		  String email=emph;
+		  if(email.equals("admin")&& password.equals("admin")) {
+			  session.setAttribute("success", "Login Success As Admin");
+			  session.setAttribute("admin", "admin");
+			  return "redirect:/";
+		  }
+		  else {
 		  Customer customer=customerRepository.findByEmail(email);
 		  Theatre theatre=theatreRepository.findByEmail(email);
 		  if(customer==null && theatre==null) {
@@ -110,7 +132,7 @@ public class GeneralController {
 				  if(AES.decrypt(customer.getPassword(), "123").equals(password)) {
 					  if(customer.isVerified()) {
 						  session.setAttribute("success", "Login Success As Customer");
-						  session.setAttribute("customer", "customer");
+						  session.setAttribute("customer", customer);
 						  return "redirect:/";
 					  }
 					  else {
@@ -132,6 +154,7 @@ public class GeneralController {
 					  if(theatre.isVerified()) {
 						  if(theatre.isApproved()) {
 							  session.setAttribute("success", "Login Success As Theatre");
+							  session.setAttribute("theatre", theatre);
 							  return "redirect:/";
 						  }
 						  else {
@@ -156,5 +179,74 @@ public class GeneralController {
 			  }
 		  }
 		}
+		}
 	}
+	
+	@GetMapping("/admin/approve")
+	public String approveTheatre(HttpSession session, ModelMap map) {
+		if (session.getAttribute("admin") != null) {
+			List<Theatre> list = theatreRepository.findByApprovedFalseAndVerifiedTrue();
+			if (list.isEmpty()) {
+				session.setAttribute("failure", "No Theatres Pending With Approve Request");
+				return "redirect:/";
+			} else {
+				map.put("list", list);
+				return "theatre-approve.html";
+			}
+		} else {
+			session.setAttribute("failure", "Invalid Session, Login Again");
+			return "redirect:/login";
+		}
+	}
+	
+	@GetMapping("/admin/approve-theatre/{id}")
+	public String approveTheatre(HttpSession session, ModelMap map, @PathVariable int id) {
+		if (session.getAttribute("admin") != null) {
+			Theatre theatre = theatreRepository.findById(id).orElseThrow();
+			theatre.setApproved(true);
+			theatreRepository.save(theatre);
+			session.setAttribute("success", "Account Approved Success");
+			return "redirect:/";
+
+		} else {
+			session.setAttribute("failure", "Invalid Session, Login Again");
+			return "redirect:/login";
+		}
+	}
+
+	@GetMapping("/admin/add-movie")
+	public String addMovie(HttpSession session) {
+		if(session.getAttribute("admin")!=null) {
+			return "add-movie.html";
+		}
+		else {
+			session.setAttribute("failure", "Invalid Session, Login Again");
+			return "redirect:/login";
+		}
+	}
+	
+	@PostMapping("/admin/add-movie")
+	public String addMovie(HttpSession session,Movie movie,@RequestParam MultipartFile image) {
+		if(session.getAttribute("admin")!=null) {
+			movie.setMovie_poster(cloudinaryHelper.saveMoviePosterToCloud(image));
+			movieRepository.save(movie);
+			session.setAttribute("success", "Movie Added Success");
+			return "redirect:/";
+		}
+		else {
+			session.setAttribute("failure", "Invalid Session, Login Again");
+			return "redirect:/login";
+		}
+	}
+	
+	@GetMapping("/logout")
+	public String logout(HttpSession session) {
+		session.removeAttribute("admin");
+		session.removeAttribute("customer");
+		session.removeAttribute("theatre");
+		session.setAttribute("success", "Logout Success");
+		return "redirect:/";
+	}
+	
+	
 }
